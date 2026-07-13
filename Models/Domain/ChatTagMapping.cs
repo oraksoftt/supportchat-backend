@@ -1,0 +1,1 @@
+﻿public record ChatTagMapping(long ChatId, long TagId);
