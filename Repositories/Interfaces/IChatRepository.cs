@@ -9,7 +9,7 @@ public interface IChatRepository
     Task<IEnumerable<Chat>> GetChatsByCompanyAsync(long companyId);
     Task<long> CreateChatAsync(Chat chat);
     Task AssignAgentToChatAsync(long chatId, long agentId);
-    Task CloseChatAsync(long chatId);
+    Task CloseChatAsync(long chatId, long agentId);
     Task AddTagToChatAsync(long chatId, long tagId);
     Task AddChatRatingAsync(long chatId, long companyId, long customerId, byte rating, string? comment = null);
 

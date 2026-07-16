@@ -46,11 +46,12 @@ public class ChatRepository : BaseRepository, IChatRepository
         await conn.ExecuteAsync("chat.usp_Chat_AssignAgent", parameters);
     }
 
-    public async Task CloseChatAsync(long chatId)
+    public async Task CloseChatAsync(long chatId,long agentId)
     {
         using var conn = CreateConnection();
         var parameters = new DynamicParameters();
         parameters.Add("@ChatId", chatId);
+        parameters.Add("@AgentId", agentId);
         await conn.ExecuteAsync("chat.usp_Chat_Close", parameters);
     }
 

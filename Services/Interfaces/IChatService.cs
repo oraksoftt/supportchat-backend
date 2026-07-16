@@ -9,7 +9,7 @@ public interface IChatService
     Task<IEnumerable<Chat>> GetByCompanyAsync(long companyId);
     Task<long> CreateChatAsync(CreateChatRequest request);
     Task AssignAgentAsync(long chatId, long agentId);
-    Task CloseChatAsync(long chatId);
+    Task CloseChatAsync(long chatId,long agentId);
     Task TransferChatAsync(long chatId, long newAgentId);
     Task<bool> IsAgentAvailableAsync(long agentId);
     Task<IEnumerable<Chat>> GetAgentActiveChatsAsync(long agentId);

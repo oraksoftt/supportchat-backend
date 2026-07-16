@@ -34,10 +34,10 @@ public class MessageService : IMessageService
             throw new InvalidOperationException("Chat not found.");
         }
 
-        if (chat.Status == ChatStatus.Closed)
-        {
-            throw new InvalidOperationException("Chat is closed. Cannot send messages.");
-        }
+        //if (chat.Status == ChatStatus.Closed)
+        //{
+        //    throw new InvalidOperationException("Chat is closed. Cannot send messages.");
+        //}
 
         // Validate sender
         if (request.SenderType == SenderType.Agent)

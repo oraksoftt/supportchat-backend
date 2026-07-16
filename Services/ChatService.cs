@@ -155,7 +155,7 @@ public class ChatService : IChatService
         );
     }
 
-    public async Task CloseChatAsync(long chatId)
+    public async Task CloseChatAsync(long chatId, long agentId)
     {
         var chat = await _chatRepo.GetChatByIdAsync(chatId);
         if (chat == null)
@@ -163,14 +163,14 @@ public class ChatService : IChatService
             throw new InvalidOperationException("Chat not found.");
         }
 
-        await _chatRepo.CloseChatAsync(chatId);
+        await _chatRepo.CloseChatAsync(chatId, agentId);
 
         // Send system message
         var systemMessage = new SendMessageRequest
         {
             ChatId = chatId,
             SenderType = SenderType.System,
-            SenderId = null,
+            SenderId = agentId,
             MessageType = MessageType.System,
             Message = "Chat has been closed."
         };
@@ -186,7 +186,7 @@ public class ChatService : IChatService
             null,
             "Chat closed.",
             null,
-            null
+            agentId.ToString()
         );
     }
 

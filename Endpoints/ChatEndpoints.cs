@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using SupportChat.Backend.Models.Requests;
 using SupportChat.Backend.Models.Responses;
@@ -23,7 +24,7 @@ public static class ChatEndpoints
         group.MapPost("/", CreateChatAsync)
             .WithName("CreateChat")
             .WithDescription("Create a new chat (initiated by customer or agent).")
-            .AllowAnonymous(); 
+            .AllowAnonymous();
 
         group.MapPost("/{id}/assign", AssignAgentAsync)
             .WithName("AssignAgent")
@@ -38,7 +39,7 @@ public static class ChatEndpoints
             .WithDescription("Transfer chat to another agent.");
     }
 
-    private static async Task<IResult> GetChatsForCompanyAsync(HttpContext httpContext,IChatService chatService,ILogger<Program> logger)
+    private static async Task<IResult> GetChatsForCompanyAsync(HttpContext httpContext, IChatService chatService, ILogger<Program> logger)
     {
         var companyId = httpContext.User.FindFirst("CompanyId")?.Value;
         if (string.IsNullOrEmpty(companyId) || !long.TryParse(companyId, out var cid))
@@ -48,7 +49,7 @@ public static class ChatEndpoints
         return Results.Ok(chats);
     }
 
-    private static async Task<IResult> GetChatByIdAsync(long id,IChatService chatService,IMessageService messageService,HttpContext httpContext)
+    private static async Task<IResult> GetChatByIdAsync(long id, IChatService chatService, IMessageService messageService, HttpContext httpContext)
     {
         var chat = await chatService.GetByIdAsync(id);
         if (chat == null)
@@ -63,7 +64,7 @@ public static class ChatEndpoints
         return Results.Ok(new { Chat = chat, Messages = messages });
     }
 
-    private static async Task<IResult> CreateChatAsync(CreateChatRequest request,IChatService chatService,ILogger<Program> logger)
+    private static async Task<IResult> CreateChatAsync(CreateChatRequest request, IChatService chatService, ILogger<Program> logger)
     {
         try
         {
@@ -81,7 +82,7 @@ public static class ChatEndpoints
         }
     }
 
-    private static async Task<IResult> AssignAgentAsync(long id,AssignChatRequest request,IChatService chatService,ILogger<Program> logger)
+    private static async Task<IResult> AssignAgentAsync(long id, AssignChatRequest request, IChatService chatService, ILogger<Program> logger)
     {
         if (id != request.ChatId)
             return Results.BadRequest("ID mismatch.");
@@ -102,11 +103,13 @@ public static class ChatEndpoints
         }
     }
 
-    private static async Task<IResult> CloseChatAsync(long id,IChatService chatService,ILogger<Program> logger)
+    private static async Task<IResult> CloseChatAsync(HttpContext httpContext, long id, IChatService chatService, ILogger<Program> logger)
     {
         try
         {
-            await chatService.CloseChatAsync(id);
+            var agentId = httpContext.User.FindFirst("CompanyId")?.Value;
+
+            await chatService.CloseChatAsync(id, Convert.ToInt64(agentId));
             return Results.Ok(new { Message = "Chat closed successfully." });
         }
         catch (InvalidOperationException ex)
@@ -120,7 +123,7 @@ public static class ChatEndpoints
         }
     }
 
-    private static async Task<IResult> TransferChatAsync(long id,TransferChatRequest request,IChatService chatService,ILogger<Program> logger)
+    private static async Task<IResult> TransferChatAsync(long id, TransferChatRequest request, IChatService chatService, ILogger<Program> logger)
     {
         if (id != request.ChatId)
             return Results.BadRequest("ID mismatch.");
