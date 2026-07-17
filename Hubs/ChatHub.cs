@@ -10,6 +10,7 @@ using SupportChat.Backend.Models.Requests;
 using SupportChat.Backend.Models.Responses;
 using SupportChat.Backend.Services.Interfaces;
 using SupportChat.Backend.Models.DTOs;
+using SupportChat.Backend.Services;
 
 namespace SupportChat.Backend.Hubs;
 
@@ -20,6 +21,9 @@ public class ChatHub : Hub
     private readonly IMessageService _messageService;
     private readonly INotificationService _notificationService;
     private readonly IConnectionManager _connectionManager;
+    //private readonly IDashboardService _dashboardService;
+    private readonly IServiceProvider _serviceProvider;
+    
     private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
@@ -28,6 +32,8 @@ public class ChatHub : Hub
         IMessageService messageService,
         INotificationService notificationService,
         IConnectionManager connectionManager,
+        //DashboardService dashboardService,
+        IServiceProvider serviceProvider,
         ILogger<ChatHub> logger)
     {
         _authService = authService;
@@ -35,6 +41,8 @@ public class ChatHub : Hub
         _messageService = messageService;
         _notificationService = notificationService;
         _connectionManager = connectionManager;
+        //_dashboardService = dashboardService;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -54,6 +62,23 @@ public class ChatHub : Hub
 
     private long GetUserId() => TryGetUserId() ?? throw new HubException("User not authenticated.");
     private long GetCompanyId() => TryGetCompanyId() ?? throw new HubException("Company context missing.");
+    private async Task BroadcastDashboardUpdateAsync(long companyId)
+    {
+        try
+        {
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var dashboardService = scope.ServiceProvider.GetRequiredService<IDashboardService>();
+                var freshStats = await dashboardService.GetDashboardStatsAsync(companyId);
+
+                await Clients.Group($"company-{companyId}").SendAsync("DashboardUpdated", freshStats);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error broadcasting live dashboard updates for company {CompanyId}", companyId);
+        }
+    }
 
     public override async Task OnConnectedAsync()
     {
@@ -87,6 +112,7 @@ public class ChatHub : Hub
 
                 _logger.LogInformation("Agent {UserId} connected. ConnectionId: {ConnectionId}", userId, connectionId);
                 _ = Clients.Group($"company-{companyId}").SendAsync("UserOnline", userId);
+                await BroadcastDashboardUpdateAsync(companyId);
             }
             else
             {
@@ -129,6 +155,7 @@ public class ChatHub : Hub
                         }
 
                         await Clients.Group($"company-{companyId.Value}").SendAsync("UserOffline", userId.Value);
+                    await BroadcastDashboardUpdateAsync(companyId.Value);
                     }
                     _logger.LogInformation("Agent {UserId} completely disconnected.", userId);
                 }
@@ -264,8 +291,7 @@ public class ChatHub : Hub
 
             await Clients.Group($"chat-{dto.ChatId}").SendAsync("ReceiveMessage", message);
 
-            await Clients.Group($"company-{companyId}")
-                .SendAsync("NewMessage", new { ChatId = dto.ChatId, Message = message });
+            await Clients.Group($"company-{companyId}").SendAsync("NewMessage", new { ChatId = dto.ChatId, Message = message });
         }
         catch (Exception ex) when (ex is not HubException)
         {
@@ -309,8 +335,11 @@ public class ChatHub : Hub
 
         try
         {
+            var companyId = GetCompanyId();
+
             await _chatService.CloseChatAsync(chatId, userId);
             await Clients.Group($"chat-{chatId}").SendAsync("ChatClosed", chatId);
+            await BroadcastDashboardUpdateAsync(companyId);
         }
         catch (Exception ex)
         {
@@ -322,10 +351,12 @@ public class ChatHub : Hub
     {
         if (!IsAgentConnection)
             throw new HubException("Unauthorized.");
+        var companyId = GetCompanyId();
 
         await _chatService.AssignAgentAsync(chatId, agentId);
 
         await Clients.Group($"chat-{chatId}").SendAsync("ChatAssigned", chatId, agentId);
+        await BroadcastDashboardUpdateAsync(companyId);
     }
     public async Task LeaveChatRoom(long chatId)
     {
